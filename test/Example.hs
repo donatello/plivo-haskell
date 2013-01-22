@@ -11,8 +11,8 @@ testResponse = do
   pr <- makePreAnswer "lol"
   prr <- (pure pr) <+> (pure s)
   --r <- foldM addChild r [s, p]
-  r <- (pure r) <+> (pure prr) <+> (pure s) <+> (pure p)
-  return r
+  res <- (pure r) <+> (pure prr) <+> (pure s) <+> (pure p)
+  return res
 
 main :: IO ()
 main = do
