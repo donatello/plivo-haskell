@@ -1,4 +1,26 @@
-module Plivo.XML where
+module Plivo.XML
+       (
+         PlivoXMLError
+       , Node
+       , addChild
+       , (<+>)
+       , makeResponse
+       , makePlay
+       , makeSpeak
+       , makePreAnswer
+       , makeConference
+       , makeDTMF
+       , makeHangup
+       , makeWait
+       , makeRedirect
+       , makeUser
+       , makeNumber
+       , makeMessage
+       , makeDial
+       , makeRecord
+       , makeGetDigits
+       , buildXML
+       ) where
 
 import qualified Data.Set as S
 import qualified Data.List as L
