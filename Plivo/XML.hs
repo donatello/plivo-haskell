@@ -80,7 +80,7 @@ addChild parent@(Node pn _ _ pc) child@(Node cn _ _ _)
 (<+>) :: Either PlivoXMLError Node -> Either PlivoXMLError Node -> Either PlivoXMLError Node
 (<+>) (Right a) (Right b) = addChild a b
 (<+>) (Left a) _ = (Left a)
-(<+>) (Right a) (Left b) = (Left b)
+(<+>) (Right _) (Left b) = (Left b)
 
 makeNode :: NodeType -> [Attrib] -> String -> Either PlivoXMLError Node
 makeNode ntype attribs body = 
@@ -95,6 +95,28 @@ makePlay attrs body = makeNode Play attrs body
 makeSpeak attrs body = makeNode Speak attrs body
 
 makePreAnswer body = makeNode PreAnswer [] body
+
+makeConference attrs confName = makeNode Conference attrs confName
+
+makeDTMF attrs digits = makeNode DTMF attrs digits
+
+makeHangup attrs = makeNode Hangup attrs ""
+
+makeWait attrs = makeNode Wait attrs ""
+
+makeRedirect attrs body = makeNode Redirect attrs body
+
+makeUser attrs user = makeNode User attrs user
+
+makeNumber attrs number = makeNode Number attrs number
+
+makeMessage attrs message = makeNode Message attrs message
+
+makeDial attrs = makeNode Dial attrs ""
+
+makeRecord attrs = makeNode Record attrs ""
+
+makeGetDigits attrs = makeNode GetDigits attrs ""
 
 buildXMLElem :: Node -> Xml Elem
 buildXMLElem node@(Node n a b c)
