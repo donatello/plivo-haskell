@@ -3,7 +3,6 @@ module Plivo.XML
          PlivoXMLError
        , Node
        , addChild
-       , (<+>)
        , makeResponse
        , makePlay
        , makeSpeak
@@ -95,14 +94,9 @@ allowedAttribs ntype attr | (fieldSet attr) `S.isSubsetOf` (attrRules ntype) = R
     errMsg = L.intercalate " " errAttrs
 
 addChild :: Node -> Node -> Either PlivoXMLError Node
-addChild parent@(Node pn _ _ pc) child@(Node cn _ _ _) 
+addChild child@(Node cn _ _ _) parent@(Node pn _ _ pc)
   | cn `S.member` (nestingRules pn) = Right $ parent {children = pc ++ [child]}
   | otherwise = Left (InvalidNesting $ TP.printf "%s in %s" (show cn) (show pn))
-
-(<+>) :: Either PlivoXMLError Node -> Either PlivoXMLError Node -> Either PlivoXMLError Node
-(<+>) (Right a) (Right b) = addChild a b
-(<+>) (Left a) _ = (Left a)
-(<+>) (Right _) (Left b) = (Left b)
 
 makeNode :: NodeType -> [Attrib] -> String -> Either PlivoXMLError Node
 makeNode ntype attribs body = 
