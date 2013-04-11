@@ -1,4 +1,5 @@
 import Plivo.XML
+import Plivo.RestApi
 import qualified Data.ByteString as B
 
 
@@ -22,3 +23,8 @@ main = do
   putStrLn ""
   putStrLn . show $ testResponse
 
+  settings <- initApiSettings "MAOTBINZLKMJDLZDK2ZD" "YmY5YTI2YmIzNWFmMmYyZjY3NzkxNGQ3M2Y3OTBm"
+
+  (c, r) <- get_account settings
+  putStrLn (show c)
+  B.putStrLn r
