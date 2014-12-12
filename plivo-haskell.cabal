@@ -44,20 +44,32 @@ build-type:          Simple
 -- Constraint on the version of Cabal needed to build this package.
 cabal-version:       >=1.8
 
+-- executable test1
+--   ghc-options: -Wall
+--   main-is: Test1.hs
+--   hs-source-dirs: test,
+--                   Plivo
+--   build-depends: base          >= 4.5.0.0,
+--                  plivo-haskell
 
 library
+  ghc-options: -Wall -fwarn-tabs -funbox-strict-fields
+
   -- Modules exported by the library.
-  exposed-modules:   Plivo.XML
-                     Plivo.RestApi
-  
+  exposed-modules:   Plivo.RestApi
+--                     Plivo.XML
+
   -- Modules included in this library but not exported.
   -- other-modules:       
   
   -- Other library packages from which modules are imported.
-  build-depends:       base          == 4.5.*,
-                       bytestring    >= 0.9    && < 0.11,
-                       containers    >= 0.4,
+  build-depends:       base          >= 4.5.0.0,
+                       bytestring    >= 0.10.4.0  && < 0.11,
+                       containers    >= 0.5.5.1,
                        xmlgen        >= 0.4.0.3,
-                       http-conduit  >= 1.8.4.3,
-                       conduit       >= 0.2,
-                       http-types    >= 0.7
+                       http-types    >= 0.8.5,
+                       wreq          >= 0.3.0.0,
+                       lens          >= 4.6.0.1,
+                       text          >= 1.2.0.0,
+                       aeson         >= 0.8.0.2,
+                       mtl           >= 2.2.1
