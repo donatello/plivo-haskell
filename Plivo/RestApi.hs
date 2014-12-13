@@ -47,6 +47,24 @@ module Plivo.RestApi
        , undeafMember
        , startRecordingConference
        , stopRecordingConference
+       , createEndpoint
+       , getEndpoint
+       , getEndpoints
+       , modifyEndpoint
+       , deleteEndpoint
+       , sendMessage
+       , getMessages
+       , getMessage
+       , getRentedNumbers
+       , getRentedNumber
+       , modifyNumber
+       , unrentNumber
+       , availableNumberGroup
+       , rentNumber
+       , getPricing
+       , getRecordings
+       , getRecording
+       , deleteRecording
 
        , (~~)
        ) where
@@ -56,7 +74,7 @@ import           Plivo.Validator
 
 import           Network.Wreq hiding (params)
 import           Control.Lens
-import           Control.Monad.Writer
+import           Control.Monad.Except
 import           Data.Aeson (toJSON)
 import qualified Data.Text as T
 import           Data.Text.Encoding (encodeUtf8)
@@ -88,21 +106,22 @@ runRequest req = case req of
 
 evaluate :: ApiSettings -> T.Text -> ReqType ->
             [URL] -> [QParam] -> [PostParam] ->
-            [Writer [ArgsError] Bool] ->
+            [[ArgsError]] ->
             IO (Either [T.Text] (Response Bl.ByteString))
-evaluate settings reqName reqType urls qparams postparams checks = do
-  let (ok, errorMsgs) = evalChecks (checks ++
-                                    [checkQParams qparams reqName,
-                                     checkPostParams postparams reqName])
-      urlFragment = T.concat $ concatMap (:["/"]) urls
-  case ok of
-   False -> return.Left $ errorMsgs
-   True ->
-     let req = case reqType of
-                POST -> PostRequest settings urlFragment qparams postparams
-                DELETE -> DeleteRequest settings urlFragment qparams
-                GET -> GetRequest settings urlFragment qparams
-     in liftM Right $ runRequest req
+evaluate settings reqName reqType urls qparams postparams checks =
+  runExceptT $ do
+    if L.null errorMsgs
+      then liftIO $ runRequest req
+      else throwError errorMsgs
+  where
+    req = case reqType of
+      POST -> PostRequest settings urlFragment qparams postparams
+      DELETE -> DeleteRequest settings urlFragment qparams
+      GET -> GetRequest settings urlFragment qparams
+    errorMsgs = evalChecks (checks ++
+                            [checkQParams qparams reqName,
+                             checkPostParams postparams reqName])
+    urlFragment = T.concat $ concatMap (:["/"]) urls
 
 initApiSettings :: T.Text -> T.Text -> ApiSettings
 initApiSettings authId authTok = ApiSettings authId authTok defaults
@@ -399,3 +418,116 @@ stopRecordingConference settings conferenceName =
   evaluate settings "stopRecordingConference" DELETE
   ["Conference", conferenceName, "Record"] [] []
   [checkNonEmpty "conferenceName" conferenceName]
+
+createEndpoint :: ApiSettings -> [PostParam] ->
+                  IO (Either [T.Text] (Response Bl.ByteString))
+createEndpoint settings params =
+  evaluate settings "createEndpoint" POST
+  ["Endpoint"] [] params []
+
+getEndpoint :: ApiSettings -> T.Text ->
+               IO (Either [T.Text] (Response Bl.ByteString))
+getEndpoint settings endpointId =
+  evaluate settings "createEndpoint" GET
+  ["Endpoint", endpointId] [] []
+  [checkNonEmpty "endpointId" endpointId]
+
+getEndpoints :: ApiSettings ->
+                IO (Either [T.Text] (Response Bl.ByteString))
+getEndpoints settings =
+  evaluate settings "getEndpoints" GET
+  ["Endpoint"] [] [] []
+
+modifyEndpoint :: ApiSettings -> T.Text -> [PostParam] ->
+                  IO (Either [T.Text] (Response Bl.ByteString))
+modifyEndpoint settings endpointId params =
+  evaluate settings "modifyEndpoint" POST
+  ["Endpoint", endpointId] [] params
+  [checkNonEmpty "endpointId" endpointId]
+
+deleteEndpoint :: ApiSettings -> T.Text ->
+                  IO (Either [T.Text] (Response Bl.ByteString))
+deleteEndpoint settings endpointId =
+  evaluate settings "deleteEndpoint" DELETE
+  ["Endpoint", endpointId] [] []
+  [checkNonEmpty "endpointId" endpointId]
+
+sendMessage :: ApiSettings -> [PostParam] ->
+               IO (Either [T.Text] (Response Bl.ByteString))
+sendMessage settings params =
+  evaluate settings "sendMessage" POST
+  ["Message"] [] params []
+
+getMessages :: ApiSettings -> [QParam] ->
+               IO (Either [T.Text] (Response Bl.ByteString))
+getMessages settings params =
+  evaluate settings "getMessages" GET
+  ["Message"] params [] []
+
+getMessage :: ApiSettings -> T.Text ->
+              IO (Either [T.Text] (Response Bl.ByteString))
+getMessage settings messageUUID =
+  evaluate settings "getMessage" GET
+  ["Message", messageUUID] [] []
+  [checkNonEmpty "messageUUID" messageUUID]
+
+getRentedNumbers :: ApiSettings -> [QParam] ->
+                    IO (Either [T.Text] (Response Bl.ByteString))
+getRentedNumbers settings params =
+  evaluate settings "getRentedNumbers" GET
+  ["Number"] params [] []
+
+getRentedNumber :: ApiSettings -> T.Text ->
+                   IO (Either [T.Text] (Response Bl.ByteString))
+getRentedNumber settings number =
+  evaluate settings "getRentedNumber" GET
+  ["Number", number] [] [] [checkNonEmpty "number" number]
+
+modifyNumber :: ApiSettings -> T.Text -> [PostParam] ->
+                IO (Either [T.Text] (Response Bl.ByteString))
+modifyNumber settings number params =
+  evaluate settings "modifyNumber" POST
+  ["Number", number] [] params []
+
+unrentNumber :: ApiSettings -> T.Text ->
+                IO (Either [T.Text] (Response Bl.ByteString))
+unrentNumber settings number =
+  evaluate settings "unrentNumber" DELETE
+  ["Number", number] [] [] [checkNonEmpty "number" number]
+
+availableNumberGroup :: ApiSettings -> [QParam] ->
+                        IO (Either [T.Text] (Response Bl.ByteString))
+availableNumberGroup settings params =
+  evaluate settings "availableNumberGroup" GET
+  ["AvailableNumberGroup"] params [] []
+
+rentNumber :: ApiSettings -> T.Text -> [PostParam] ->
+              IO (Either [T.Text] (Response Bl.ByteString))
+rentNumber settings groupId params =
+  evaluate settings "rentNumber" POST
+  ["AvailableNumberGroup", groupId] [] params
+  [checkNonEmpty "groupId" groupId]
+
+getPricing :: ApiSettings -> [PostParam] ->
+              IO (Either [T.Text] (Response Bl.ByteString))
+getPricing settings params =
+  evaluate settings "getPricing" GET
+  ["Pricing"] params [] []
+
+getRecordings :: ApiSettings -> [QParam] ->
+                 IO (Either [T.Text] (Response Bl.ByteString))
+getRecordings settings params =
+  evaluate settings "getRecordings" GET
+  ["Recording"] params [] []
+
+getRecording :: ApiSettings -> T.Text ->
+                 IO (Either [T.Text] (Response Bl.ByteString))
+getRecording settings recordingId =
+  evaluate settings "getRecording" GET
+  ["Recording", recordingId] [] [] [checkNonEmpty "recordingId" recordingId]
+
+deleteRecording :: ApiSettings -> T.Text ->
+                   IO (Either [T.Text] (Response Bl.ByteString))
+deleteRecording settings recordingId =
+  evaluate settings "deleteRecording" DELETE
+  ["Recording", recordingId] [] [] [checkNonEmpty "recordingId" recordingId]

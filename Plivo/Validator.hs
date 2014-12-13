@@ -12,7 +12,7 @@ import           Plivo.Types
 import qualified Data.Map.Strict as M
 import qualified Data.Text as T
 import qualified Data.List as L
-import           Control.Monad.Writer
+import           Data.Maybe
 
 postParams :: [(T.Text,
                 [(PName, ArgRequirement, TypeValidator)])]
@@ -115,6 +115,30 @@ postParams = [
                                  , ("callback_url",         Optional, isString)
                                  , ("callback_method",      Optional, isString)
                                  ])
+  , ("createEndpoint", [ ("username", Mandatory, isString)
+                       , ("password", Mandatory, isString)
+                       , ("alias",    Mandatory, isString)
+                       , ("app_id",   Optional, isString)
+                       ])
+  , ("modifyEndpoint", [ ("password", Optional, isString)
+                       , ("alias",    Optional, isString)
+                       , ("app_id",   Optional, isString)
+                       ])
+  , ("sendMessage", [ ("src",    Mandatory, isString)
+                    , ("dst",    Mandatory, isString)
+                    , ("text",   Mandatory, isString)
+                    , ("type",   Optional,  isString)
+                    , ("url",    Optional,  isString)
+                    , ("method", Optional,  isString)
+                    , ("log",    Optional,  isBool)
+                    ])
+  , ("modifyNumber", [ ("app_id",     Optional, isString)
+                     , ("subaccount", Optional, isString)
+                     , ("alias",      Optional, isString)
+                     ])
+  , ("modifyNumber", [ ("quantity", Optional, isString)
+                     , ("app_id",   Optional, isString)
+                     ])
   ]
 
 queryParams :: [(T.Text,
@@ -151,6 +175,33 @@ queryParams = [
   , ("getLiveCalls", [("status", Mandatory, isString)])
   , ("getLiveCallDetails", [("status", Mandatory, isString)])
   , ("stopRecordingCall", [("URL", Optional, isString)])
+  , ("getMessages", [ ("limit", Optional, isInt)
+                    , ("offset", Optional, isInt)
+                    ])
+  , ("getRentedNumbers", [ ("number_type",       Optional, isString)
+                         , ("number_startswith", Optional, isString)
+                         , ("subaccount",        Optional, isString)
+                         , ("alias",             Optional, isString)
+                         , ("services",          Optional, isString)
+                         , ("limit",             Optional, isInt)
+                         , ("offset",            Optional, isInt)
+                         ])
+  , ("availableNumberGroup", [ ("country_iso", Mandatory, isString)
+                             , ("number_type", Optional,  isString)
+                             , ("prefix",      Optional,  isString)
+                             , ("region",      Optional,  isString)
+                             , ("services",    Optional,  isString)
+                             , ("limit",       Optional,  isInt)
+                             , ("offset",      Optional,  isInt)
+                             ])
+  , ("getPricing", [ ("country_iso", Mandatory, isString)
+                   ])
+  , ("getRecordings", [ ("subaccount", Optional, isString)
+                      , ("call_uuid",  Optional, isString)
+                      , ("add_time",   Optional, isString)
+                      , ("limit",      Optional, isInt)
+                      , ("offset",     Optional, isInt)
+                      ])
   ]
 
 mkMap :: [(T.Text, [(PName, ArgRequirement, TypeValidator)])] ->
@@ -186,59 +237,53 @@ getMessage (MissingMandatory name) = T.concat [
   "**", name, "**", " is a missing mandatory parameter."]
 getMessage (AtLeastOneRequired txt) = T.concat [
   "At least one ", txt, " is required."]
-getMessage (EmptyArgument txt) = txt
+getMessage (EmptyArgument name) = T.concat [
+  "**", name, "**", " should not be empty"]
 
-genErrorMessages :: [ArgsError] -> [T.Text]
-genErrorMessages = map getMessage
-
-checkParamType :: ReqParamSpec -> (PName, PValue) -> Writer [ArgsError] Bool
+checkParamType :: ReqParamSpec -> (PName, PValue) -> Maybe ArgsError
 checkParamType mp (name, value) = case M.lookup name mp of
-  Nothing -> tell [InvalidParam name] >> return False
+  Nothing -> Just $ InvalidParam name
   Just (_, tchecker) -> case tchecker name value of
-    Just typeError -> tell [typeError] >> return False
-    Nothing -> return True
+    Just typeError -> Just typeError
+    Nothing -> Nothing
 
-checkParamReq :: ReqParamSpec -> (PName, PValue) -> Writer [ArgsError] Bool
+checkParamReq :: ReqParamSpec -> (PName, PValue) -> Maybe ArgsError
 checkParamReq mp (mArg, _) = case mArg `elem` mArgs of
-  True -> return True
-  False -> tell [MissingMandatory mArg] >> return False
+  True -> Nothing
+  False -> Just $ MissingMandatory mArg
   where
     mArgs = M.keys $ M.filter (\(r, _) -> r == Mandatory) mp
 
 checkParams :: [(PName, PValue)] -> T.Text ->
                M.Map T.Text ReqParamSpec ->
-               Writer [ArgsError] Bool
-checkParams params requestName rpspec = do
+               [ArgsError]
+checkParams params requestName rpspec =
   let mp = M.findWithDefault M.empty requestName rpspec
-  okTypes <- liftM and $ mapM (checkParamType mp) params
-  okMandatory <- liftM and $ mapM (checkParamReq mp) params
-  return (okTypes && okMandatory)
+      val = concatMap (\f -> map (f mp) params) [
+        checkParamType, checkParamReq]
+  in fromJust $ sequence $ filter isJust val
 
-checkPostParams :: [PostParam] -> T.Text -> Writer [ArgsError] Bool
+checkPostParams :: [PostParam] -> T.Text -> [ArgsError]
 checkPostParams params requestName =
   checkParams params requestName postParamMP
 
-checkQParams :: [QParam] -> T.Text -> Writer [ArgsError] Bool
+checkQParams :: [QParam] -> T.Text -> [ArgsError]
 checkQParams params requestName =
   checkParams params requestName qParamMP
 
-hasAtLeastOnePostArg :: [PostParam] -> Writer [ArgsError] Bool
+hasAtLeastOnePostArg :: [PostParam] -> [ArgsError]
 hasAtLeastOnePostArg ps =
   if L.null ps
-    then tell [AtLeastOneRequired "POST parameter"] >> return False
-    else return True
+    then [AtLeastOneRequired "POST parameter"]
+    else []
 
-evalChecks :: [Writer [ArgsError] Bool] -> (Bool, [T.Text])
-evalChecks checks = (and res, genErrorMessages errmsgs)
-  where
-    (res, errmsgs) = runWriter $ sequence checks
+evalChecks :: [[ArgsError]] -> [T.Text]
+evalChecks = map getMessage.concat
 
-checkNonEmpty :: T.Text -> T.Text -> Writer [ArgsError] Bool
+checkNonEmpty :: T.Text -> T.Text -> [ArgsError]
 checkNonEmpty name value = 
   if T.null value
-    then tell [EmptyArgument $ T.concat [
-                  "**", name, "**", " should not be empty"]] >>
-         return False
-    else return True
+    then [EmptyArgument name]
+    else []
 
 -- checkParams ["name" ~~ "abcd", "city" ~~ 3] "modifyAccount"
