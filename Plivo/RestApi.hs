@@ -1,6 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-
 module Plivo.RestApi
        (
          initApiSettings
