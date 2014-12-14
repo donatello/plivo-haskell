@@ -57,7 +57,7 @@ library
 
   -- Modules exported by the library.
   exposed-modules:   Plivo.RestApi
---                     Plivo.XML
+                     Plivo.XML
 
   -- Modules included in this library but not exported.
   -- other-modules:       
@@ -66,7 +66,7 @@ library
   build-depends:       base          >= 4.5.0.0,
                        bytestring    >= 0.10.4.0  && < 0.11,
                        containers    >= 0.5.5.1,
-                       xmlgen        >= 0.4.0.3,
+                       xmlgen        >= 0.6.2.1,
                        http-types    >= 0.8.5,
                        wreq          >= 0.3.0.0,
                        lens          >= 4.6.0.1,
